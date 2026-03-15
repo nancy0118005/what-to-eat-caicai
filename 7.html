@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3秒食决 - 音乐转盘版</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700;900&family=Poppins:wght@400;600;800&display=swap');
+
+        :root {
+            --bg-color: #F8FAFC;
+            --card-bg: #FFFFFF;
+            --text-main: #1E293B;
+            --text-light: #64748B;
+            --accent-red: #EF4444;
+            --accent-green: #10B981;
+            --price-tag: #F59E0B;
+            --aesthetic-bg: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%);
+            --icon-bg: linear-gradient(180deg, #F1F5F9 0%, #E2E8F0 100%);
+            --shadow-soft: 0 10px 25px rgba(0,0,0,0.05);
+            --shadow-hover: 0 20px 40px rgba(0,0,0,0.12);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', 'Noto Sans SC', sans-serif; touch-action: manipulation;}
+        body { background-color: var(--bg-color); color: var(--text-main); height: 100vh; overflow: hidden; display: flex; flex-direction: column; position: relative; transition: background 0.5s;}
+
+        .hidden { display: none !important; }
+
+        /* --- 音效控制按钮 --- */
+        .audio-btn { position: absolute; top: 20px; right: 20px; background: white; border: none; font-size: 20px; width: 45px; height: 45px; border-radius: 50%; box-shadow: var(--shadow-soft); cursor: pointer; z-index: 100; transition: 0.3s; }
+        .audio-btn:hover { transform: scale(1.1); box-shadow: var(--shadow-hover); }
+
+        /* --- 顶部 Logo --- */
+        .header { text-align: center; padding: 25px 0 10px; z-index: 10; flex-shrink: 0;}
+        .header h1 { font-weight: 900; font-size: 28px; letter-spacing: 2px; }
+        .timer-container { width: 90%; max-width: 400px; height: 8px; background: #E2E8F0; margin: 15px auto 0; border-radius: 10px; overflow: hidden; display: none; }
+        .timer-bar { height: 100%; width: 100%; background: var(--accent-green); }
+
+        /* --- 首页：盲选菜单 --- */
+        .home-screen { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-bottom: 60px; z-index: 20; width: 100%;}
+        .home-screen p { font-size: 16px; color: var(--text-light); margin-bottom: 25px; text-align: center; padding: 0 20px; }
+        
+        .meal-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; width: 90%; max-width: 500px; margin-bottom: 30px;}
+        .meal-btn { background: var(--card-bg); border: none; padding: 20px; border-radius: 24px; font-size: 18px; font-weight: 800; cursor: pointer; box-shadow: var(--shadow-soft); transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--text-main); }
+        .meal-btn span { font-size: 40px; }
+        .meal-btn:active { transform: scale(0.95); }
+        .btn-aesthetic { background: var(--aesthetic-bg); color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+        /* 操作区 */
+        .action-btns { display: flex; gap: 15px; width: 90%; max-width: 500px; justify-content: center;}
+        .action-btn { padding: 12px 20px; border-radius: 40px; font-weight: 700; border: none; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; flex: 1;}
+        .btn-refresh { background: var(--text-main); color: white; box-shadow: var(--shadow-soft); }
+        .btn-refresh:active { transform: rotate(5deg) scale(0.95); }
+        .btn-add { background: #E2E8F0; color: var(--text-main); }
+
+        /* 吐司提示 */
+        .toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: var(--accent-green); color: white; padding: 10px 25px; border-radius: 30px; font-weight: bold; font-size: 14px; box-shadow: var(--shadow-hover); opacity: 0; transition: 0.3s; z-index: 200; pointer-events: none; width: max-content;}
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(20px); }
+
+        /* --- 游戏主界面 --- */
+        .game-screen { flex: 1; display: flex; justify-content: center; align-items: center; padding-bottom: 50px; width: 100%; position: relative;}
+        
+        .desktop-hints { display: none; width: 100%; justify-content: space-between; position: absolute; top: 50%; transform: translateY(-50%); padding: 0 50px; pointer-events: none; z-index: 5;}
+        .hint-side { text-align: center; opacity: 0.5; transition: 0.2s; }
+        .hint-side.active { opacity: 1; transform: scale(1.1); }
+        .key-box { background: white; padding: 15px 25px; border-radius: 12px; font-size: 24px; font-weight: 900; box-shadow: var(--shadow-soft); border: 2px solid #E2E8F0; margin-bottom: 10px; }
+        
+        .card-container { width: 85vw; max-width: 380px; height: 55vh; max-height: 500px; position: relative; perspective: 1500px; z-index: 10;}
+        .food-card { position: absolute; width: 100%; height: 100%; background: var(--card-bg); border-radius: 32px; box-shadow: var(--shadow-hover); overflow: hidden; display: flex; flex-direction: column; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s; }
+        
+        .price-tag { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.8); color: white; padding: 6px 15px; border-radius: 20px; font-weight: 900; font-size: 18px; backdrop-filter: blur(5px); z-index: 2; }
+        .food-icon-box { width: 100%; height: 60%; background: var(--icon-bg); display: flex; justify-content: center; align-items: center; font-size: 120px; filter: drop-shadow(0 15px 15px rgba(0,0,0,0.1)); }
+        .food-info { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 15px 20px; text-align: center; }
+        .food-info h2 { font-size: 26px; font-weight: 900; margin-bottom: 5px;}
+        .food-info p { font-size: 15px; color: var(--text-light); }
+
+        .swipe-left { transform: translate(-200px, 50px) rotate(-20deg) scale(0.8); opacity: 0; }
+        .swipe-right { transform: translate(200px, 50px) rotate(20deg) scale(0.8); opacity: 0; }
+
+        /* --- 大厨动画 --- */
+        .chef-container { position: absolute; bottom: 20px; width: 100%; text-align: center; font-size: 30px; user-select: none; pointer-events: none; z-index: 50; display: flex; justify-content: center; align-items: center; }
+        .chef-bg { background: rgba(255,255,255,0.8); padding: 8px 20px; border-radius: 50px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 8px; backdrop-filter: blur(5px);}
+        @keyframes toss { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-15px) rotate(15deg); } }
+        @keyframes chop { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-25deg) translateY(5px); } }
+        @keyframes fire { 0% { opacity: 0.8; transform: scale(1); } 50% { opacity: 1; transform: scale(1.2) translateY(-5px); } 100% { opacity: 0.8; transform: scale(1); } }
+        .anim-toss { display: inline-block; animation: toss 0.6s infinite ease-in-out; }
+        .anim-chop { display: inline-block; animation: chop 0.3s infinite ease-in-out; }
+        .anim-fire { display: inline-block; animation: fire 0.5s infinite; }
+        .chef-text { font-size: 12px; color: var(--text-light); font-weight: 700; margin-left: 5px; }
+
+        /* --- 终极转盘 --- */
+        .roulette-screen { flex: 1; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; padding-bottom: 50px; width: 100%; background: #1E293B;}
+        .roulette-title { color: white; font-size: 28px; font-weight: 900; margin-bottom: 30px; text-shadow: 0 2px 10px rgba(0,0,0,0.5);}
+        .wheel-wrapper { position: relative; width: 300px; height: 300px; margin-bottom: 40px; }
+        .wheel-pointer { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 30px solid var(--accent-red); z-index: 10; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.3));}
+        .wheel { width: 100%; height: 100%; border-radius: 50%; border: 8px solid white; box-shadow: 0 10px 30px rgba(0,0,0,0.4); position: relative; overflow: hidden;}
+        .wheel-slice { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        .wheel-emoji { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); font-size: 35px; }
+        .spin-btn { padding: 15px 50px; font-size: 22px; font-weight: 900; background: var(--accent-green); color: white; border-radius: 40px; border: none; cursor: pointer; box-shadow: 0 10px 20px rgba(16, 185, 129, 0.4); transition: 0.2s;}
+        .spin-btn:active { transform: scale(0.95); }
+        .spin-btn:disabled { background: #64748B; cursor: not-allowed; box-shadow: none; transform: none;}
+
+        /* --- 结局 --- */
+        .result-screen, .fail-screen { flex: 1; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 50; padding-bottom: 50px; text-align: center; width: 90%; margin: 0 auto;}
+        .result-icon-wrapper { width: 180px; height: 180px; background: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 90px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); margin: 10px 0 20px; border: 8px solid white; }
+        .restart-btn { margin-top: 20px; padding: 15px 40px; font-size: 18px; font-weight: 900; background: var(--text-main); color: white; border-radius: 40px; border: none; cursor: pointer; transition: 0.3s; box-shadow: var(--shadow-hover); width: 100%; max-width: 300px;}
+        .restart-btn:hover { background: var(--accent-green); transform: scale(1.05); }
+        .fail-icon { font-size: 80px; margin-bottom: 10px; animation: float 2s infinite ease-in-out;}
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+        .fail-btn { background: white; color: var(--text-main); border: 2px solid var(--text-main);}
+
+        /* 弹窗 */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 200; }
+        .modal { background: #fff; padding: 25px; border-radius: 24px; width: 90%; max-width: 350px; display: flex; flex-direction: column; gap: 15px; }
+        .modal input, .modal select { padding: 12px; border: 2px solid #E2E8F0; border-radius: 12px; font-size: 14px; outline: none; }
+        .modal-btns { display: flex; gap: 10px; margin-top: 10px; }
+        .modal-btns button { flex: 1; padding: 12px; border-radius: 12px; font-weight: 700; border: none; cursor: pointer;}
+        .btn-confirm { background: var(--text-main); color: white; }
+        .btn-cancel { background: #E2E8F0; color: var(--text-main); }
+
+        @media (min-width: 768px) {
+            .meal-options { grid-template-columns: repeat(2, 1fr); width: 500px; }
+            .action-btns { flex-direction: row; }
+            .card-container { width: 400px; height: 550px; }
+            .desktop-hints { display: flex; }
+            .food-icon-box { font-size: 150px; }
+        }
+        @media (max-width: 767px) {
+            .meal-options { grid-template-columns: 1fr; }
+            .action-btns { flex-direction: column; }
+            .header h1 { font-size: 24px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 🎵 音频系统 -->
+    <audio id="bgm" loop preload="auto"></audio>
+    <audio id="sfxSwipeR" src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_bb630cc098.mp3?filename=short-success-sound-glockenspiel-treasure-video-game-6346.mp3"></audio>
+    <audio id="sfxSwipeL" src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_c6ccf3232f.mp3?filename=whoosh-6316.mp3"></audio>
+    <audio id="sfxWin" src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_8df7f0eb98.mp3?filename=success-1-6297.mp3"></audio>
+    <audio id="sfxLose" src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_14fc92fcab.mp3?filename=error-126627.mp3"></audio>
+
+    <button class="audio-btn" id="audioBtn" onclick="manualToggleAudio()">🔇</button>
+
+    <div class="toast" id="toastMsg">✨ 菜单洗牌，已切歌！</div>
+
+    <div class="header" id="headerInfo">
+        <h1>🍽️ 3秒食决</h1>
+        <div class="timer-container" id="timerContainer"><div class="timer-bar" id="timerBar"></div></div>
+    </div>
+
+    <!-- 首页 -->
+    <div class="home-screen" id="homeScreen">
+        <p>支持<b>左右滑动</b>卡片，或使用键盘 ← →</p>
+        <div class="meal-options">
+            <button class="meal-btn" onclick="startGame('breakfast')"><span>🥟</span>早八回血</button>
+            <button class="meal-btn" onclick="startGame('lunch')"><span>🍛</span>糊弄午餐</button>
+            <button class="meal-btn" onclick="startGame('dinner')"><span>🍺</span>抚慰晚餐</button>
+            <button class="meal-btn btn-aesthetic" onclick="startGame('aesthetic')"><span>✨</span>漂亮饭</button>
+        </div>
+        <div class="action-btns">
+            <button class="action-btn btn-refresh" onclick="shuffleAndChangeMusic()">🔄 洗牌打乱 & 切歌</button>
+            <button class="action-btn btn-add" onclick="openAddModal()">➕ 暗中添加选项</button>
+        </div>
+    </div>
+
+    <!-- 弹窗 -->
+    <div class="modal-overlay hidden" id="addModal">
+        <div class="modal">
+            <h2 style="font-weight: 900; font-size: 20px;">添加自定义美食</h2>
+            <select id="addCategory">
+                <option value="breakfast">🥟 早八回血</option>
+                <option value="lunch">🍛 糊弄午餐</option>
+                <option value="dinner">🍺 抚慰晚餐</option>
+                <option value="aesthetic">✨ 漂亮饭</option>
+            </select>
+            <input type="text" id="addName" placeholder="菜名 (例: 楼下黄焖鸡)">
+            <input type="text" id="addPrice" placeholder="价格 (例: 18)">
+            <input type="text" id="addDesc" placeholder="一句话描述它">
+            <input type="text" id="addIcon" placeholder="Emoji 图标 (例如: 🍔)">
+            <div class="modal-btns">
+                <button class="btn-cancel" onclick="closeAddModal()">取消</button>
+                <button class="btn-confirm" onclick="confirmAdd()">塞进牌库</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 游戏主界面 -->
+    <div class="game-screen hidden" id="gameScreen">
+        <div class="desktop-hints">
+            <div class="hint-side hint-left" id="hintLeft"><div class="key-box">←</div><h3>达咩</h3></div>
+            <div class="hint-side hint-right" id="hintRight"><div class="key-box">→</div><h3>想吃</h3></div>
+        </div>
+        <div class="card-container" id="cardContainer"></div>
+    </div>
+
+    <!-- 终极转盘 -->
+    <div class="roulette-screen" id="rouletteScreen">
+        <h1 class="roulette-title">🎰 终极转盘</h1>
+        <p style="color:#CBD5E1; margin-bottom:20px;">交给命运来决定吧！</p>
+        <div class="wheel-wrapper">
+            <div class="wheel-pointer"></div>
+            <div class="wheel" id="wheel"></div>
+        </div>
+        <button class="spin-btn" id="spinBtn" onclick="spinWheel()">🔥 开始抽取</button>
+    </div>
+
+    <!-- 结局 1 -->
+    <div class="result-screen" id="resultScreen">
+        <h1 style="font-size: 36px; font-weight: 900; color: var(--accent-green);">🎉 别纠结了，去吃吧！</h1>
+        <div class="result-icon-wrapper" id="resultIcon">🍲</div>
+        <h1 id="resultName" style="font-size: 32px; font-weight: 900;">火锅</h1>
+        <p id="resultPriceTag" style="font-size: 22px; font-weight: 900; color: var(--price-tag); margin-top: 5px;">¥ 0</p>
+        <p id="resultDesc" style="color: var(--text-light); margin: 10px 0 20px; font-size: 16px;"></p>
+        <button class="restart-btn" onclick="location.reload()">吃饱了，再玩一次</button>
+    </div>
+
+    <!-- 结局 2 -->
+    <div class="fail-screen" id="failScreen">
+        <div class="fail-icon">💨</div>
+        <h1 style="font-size: 45px; font-weight: 900; color: var(--accent-red); margin-bottom: 10px;">活该吃不上饭！</h1>
+        <p style="color: #94A3B8; font-size: 16px; margin-bottom: 30px;">挑剔鬼，给你选的你全【达咩】！</p>
+        <button class="restart-btn fail-btn" onclick="location.reload()">我错了，重新选</button>
+    </div>
+
+    <!-- 动画大厨 -->
+    <div class="chef-container" id="chefContainer">
+        <div class="chef-bg" id="chefAnimBox"></div>
+    </div>
+
+<script>
+    // --- 🎵 全新音乐池系统与自动解锁机制 ---
+    const bgmPool = [
+        "https://cdn.pixabay.com/download/audio/2022/02/22/audio_d1718ab41b.mp3", // Lofi Chill
+        "https://cdn.pixabay.com/download/audio/2022/05/17/audio_03d9220c58.mp3", // Happy Upbeat
+        "https://cdn.pixabay.com/download/audio/2023/06/13/audio_09746e1189.mp3", // Jazz Bossa
+        "https://cdn.pixabay.com/download/audio/2021/09/08/audio_65275e5264.mp3"  // Relaxing Piano
+    ];
+    
+    let audioEnabled = false; 
+    let bgmInitialized = false; // 判断BGM是否已经被激活过
+
+    // ⭐ 突破浏览器限制的核心逻辑：监听全局的"第一次点击或触摸"
+    function autoInitBGM() {
+        if (bgmInitialized) return; // 如果已经启动过，就退出
+        
+        const bgm = document.getElementById('bgm');
+        if (!bgm.src || bgm.src === window.location.href) {
+            bgm.src = bgmPool[Math.floor(Math.random() * bgmPool.length)];
+        }
+        
+        bgm.volume = 0.4;
+        let playPromise = bgm.play();
+        
+        if (playPromise !== undefined) {
+            playPromise.then(_ => {
+                // 播放成功
+                bgmInitialized = true;
+                audioEnabled = true;
+                document.getElementById('audioBtn').innerText = '🎵';
+                // 成功后移除事件监听，以免浪费性能
+                document.removeEventListener('click', autoInitBGM);
+                document.removeEventListener('touchstart', autoInitBGM);
+            }).catch(error => {
+                // 如果还被拦截，就等用户的下一次点击再试
+            });
+        }
+    }
+
+    // 绑定事件到全局
+    document.addEventListener('click', autoInitBGM);
+    document.addEventListener('touchstart', autoInitBGM, {passive: true});
+
+    // --- 音效相关 ---
+    function manualToggleAudio() {
+        const bgm = document.getElementById('bgm');
+        const btn = document.getElementById('audioBtn');
+        if (audioEnabled) {
+            bgm.pause();
+            audioEnabled = false;
+            btn.innerText = '🔇';
+        } else {
+            bgm.play();
+            audioEnabled = true;
+            btn.innerText = '🎵';
+        }
+    }
+
+    function playSound(id) {
+        if (!audioEnabled) return;
+        const sound = document.getElementById(id);
+        sound.volume = 0.6; 
+        sound.currentTime = 0;
+        sound.play().catch(e => {});
+    }
+
+
+    // --- 卡通食物数据库 ---
+    let foodData = {
+        breakfast: [
+            { name: "煎饼果子", price: "9", desc: "双蛋加卫龙，少点甜面酱", icon: "🌯" },
+            { name: "热干面", price: "6", desc: "多把葱花，边走边拌", icon: "🍝" },
+            { name: "大肉包", price: "5", desc: "咬下去满嘴流油，早八救星", icon: "🥟" },
+            { name: "麦满分", price: "12", desc: "猪柳蛋，打工人的讲究", icon: "🍔" },
+            { name: "皮蛋瘦肉粥", price: "8", desc: "胃暖暖的，很安心", icon: "🥣" },
+            { name: "油条豆浆", price: "6", desc: "国民经典灵魂组合", icon: "🥛" },
+            { name: "广式肠粉", price: "10", desc: "加蛋加肉爽滑Q弹", icon: "🥢" },
+            { name: "全麦三明治", price: "15", desc: "健康减脂欺骗自己", icon: "🥪" }
+        ],
+        lunch: [
+            { name: "猪脚饭", price: "20", desc: "男人的浪漫，灵魂卤汁拌饭", icon: "🍛" },
+            { name: "黄焖鸡米饭", price: "18", desc: "微辣，加份千张金针菇", icon: "🍲" },
+            { name: "骨汤麻辣烫", price: "25", desc: "假装多拿点蔬菜在减肥", icon: "🍢" },
+            { name: "兰州牛肉面", price: "15", desc: "多放辣子多放香菜，舒坦", icon: "🍜" },
+            { name: "疯狂星期四", price: "50", desc: "V我50，看看实力", icon: "🍗" },
+            { name: "脆皮烤鸭饭", price: "22", desc: "外酥里嫩，梅子酱解腻", icon: "🍱" },
+            { name: "新疆炒米粉", price: "18", desc: "爆辣警告，菊花残满地伤", icon: "🌶️" },
+            { name: "日式牛肉饭", price: "28", desc: "经典肥牛，温泉蛋拌饭", icon: "🍚" }
+        ],
+        dinner: [
+            { name: "街边炭火烧烤", price: "80", desc: "没有一顿烧烤解决不了的烦恼", icon: "🍡" },
+            { name: "九宫格火锅", price: "120", desc: "辣就完事了，发汗解压", icon: "🥘" },
+            { name: "韩式炸鸡啤酒", price: "68", desc: "热量炸弹，快乐无边", icon: "🍻" },
+            { name: "爆炒小龙虾", price: "150", desc: "麻辣十三香，嗦手指", icon: "🦞" },
+            { name: "潮汕牛肉火锅", price: "100", desc: "吊龙伴胸口朥，鲜甜不腻", icon: "🥩" },
+            { name: "日式居酒屋", price: "130", desc: "烧鸟配清酒，微醺时刻", icon: "🍶" },
+            { name: "新疆大盘鸡", price: "88", desc: "皮带面裹满浓郁汤汁", icon: "🍗" },
+            { name: "酸菜鱼", price: "95", desc: "酸辣开胃，鱼汤拌饭绝了", icon: "🐟" }
+        ],
+        aesthetic: [
+            { name: "法式 Bistro", price: "350", desc: "昏暗灯光，红酒配红肉", icon: "🍷" },
+            { name: "高级 Omakase", price: "880", desc: "吃的是“全交给你了”的从容", icon: "🍣" },
+            { name: "周末 Brunch", price: "120", desc: "水波蛋、牛油果与仪式感", icon: "🥑" },
+            { name: "意式窑烤披萨", price: "160", desc: "拉丝的芝士与焦脆的饼边", icon: "🍕" },
+            { name: "三层下午茶", price: "280", desc: "香槟与马卡龙，闺蜜八卦时光", icon: "🍰" },
+            { name: "米其林西餐", price: "500", desc: "盘子巨大，菜只有一小口", icon: "🍽️" },
+            { name: "泰式冬阴功", price: "150", desc: "酸辣海鲜，一秒穿越曼谷", icon: "🥥" },
+            { name: "网红舒芙蕾", price: "68", desc: "入口即化，拍照绝配", icon: "🥞" }
+        ]
+    };
+
+    let swipeQueue = [], keptItems = [];
+    let timerInterval, isAnimating = false;
+
+    // --- 刷新：洗牌并切歌 ---
+    function shuffleAndChangeMusic() {
+        const bgm = document.getElementById('bgm');
+        bgm.src = bgmPool[Math.floor(Math.random() * bgmPool.length)];
+        if(audioEnabled) bgm.play(); // 保证切歌后自动播放
+
+        for (let key in foodData) {
+            foodData[key] = foodData[key].sort(() => Math.random() - 0.5);
+        }
+
+        const toast = document.getElementById('toastMsg');
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+        document.getElementById('chefAnimBox').innerHTML = `👨‍🍳 <span class="anim-toss">🍳</span>🎵 大厨边听歌边换菜！`;
+    }
+
+    // --- 底部大厨 ---
+    const chefScenes = [
+        { html: `👨‍🍳 <span class="anim-toss">🍳</span><span class="anim-fire">🔥</span>`, text: "大厨猛火颠勺..." },
+        { html: `👨‍🍳 <span class="anim-chop">🔪</span>🥦`, text: "疯狂切菜中..." },
+        { html: `👨‍🍳 🥢<span class="anim-toss">🍜</span>`, text: "秘制高汤中..." }
+    ];
+    setInterval(() => {
+        const box = document.getElementById('chefAnimBox');
+        if(!box.innerHTML.includes("听歌")) { 
+            const randomScene = chefScenes[Math.floor(Math.random() * chefScenes.length)];
+            box.innerHTML = `${randomScene.html} <span class="chef-text">${randomScene.text}</span>`;
+        }
+    }, 3000);
+
+    // --- 自定义添加 ---
+    function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); }
+    function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
+    function confirmAdd() {
+        const cat = document.getElementById('addCategory').value;
+        const name = document.getElementById('addName').value || '盲盒';
+        const price = document.getElementById('addPrice').value || '??';
+        const desc = document.getElementById('addDesc').value || '偷偷加的菜';
+        const icon = document.getElementById('addIcon').value || '🍱';
+        foodData[cat].push({ name, price, desc, icon });
+        closeAddModal();
+        alert("🤫 添加成功！点一下【洗牌】摇到前面来！");
+    }
+
+    // --- 开始选菜 ---
+    function startGame(category) {
+        swipeQueue = [...foodData[category]].slice(0, 8);
+        keptItems = [];
+        
+        document.getElementById('homeScreen').classList.add('hidden');
+        document.getElementById('gameScreen').classList.remove('hidden');
+        document.getElementById('timerContainer').style.display = 'block';
+        
+        if(category === 'aesthetic') {
+            document.body.style.background = '#FFF0F5';
+            document.getElementById('timerBar').style.background = 'var(--aesthetic-bg)';
+            document.documentElement.style.setProperty('--icon-bg', 'linear-gradient(180deg, #FFF0F5 0%, #FCE7F3 100%)');
+        }
+
+        renderCard();
+    }
+
+    function renderCard() {
+        if (swipeQueue.length === 0) return checkRoundEnd();
+
+        const container = document.getElementById('cardContainer');
+        container.innerHTML = ''; 
+        isAnimating = false;
+
+        const item = swipeQueue[0];
+        const card = document.createElement('div');
+        card.className = 'food-card';
+        card.id = 'activeCard';
+        card.innerHTML = `
+            <div class="price-tag">¥ ${item.price}</div>
+            <div class="food-icon-box">${item.icon}</div>
+            <div class="food-info">
+                <h2>${item.name}</h2>
+                <p>${item.desc}</p>
+            </div>
+        `;
+        container.appendChild(card);
+        startTimer();
+    }
+
+    function startTimer() {
+        clearInterval(timerInterval);
+        const totalTime = 3000; 
+        let timeLeft = totalTime;
+        const bar = document.getElementById('timerBar');
+        
+        bar.style.transition = 'none';
+        bar.style.width = '100%';
+        bar.style.background = '#10B981'; 
+        void bar.offsetWidth; 
+        bar.style.transition = `width ${totalTime}ms linear, background ${totalTime}ms linear`;
+        bar.style.width = '0%';
+        bar.style.background = '#EF4444'; 
+
+        timerInterval = setInterval(() => {
+            timeLeft -= 100;
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                handleSwipe('left'); 
+            }
+        }, 100);
+    }
+
+    function handleSwipe(direction) {
+        if (isAnimating) return;
+        const card = document.getElementById('activeCard');
+        if(!card) return;
+
+        isAnimating = true;
+        clearInterval(timerInterval);
+        const currentItem = swipeQueue.shift();
+
+        if(direction === 'left') {
+            playSound('sfxSwipeL');
+            card.classList.add('swipe-left');
+            flashHint('hintLeft');
+        } else {
+            playSound('sfxSwipeR');
+            card.classList.add('swipe-right');
+            keptItems.push(currentItem);
+            flashHint('hintRight');
+        }
+
+        setTimeout(() => renderCard(), 350);
+    }
+
+    function flashHint(elementId) {
+        const el = document.getElementById(elementId);
+        if(el) { el.classList.add('active'); setTimeout(() => el.classList.remove('active'), 200); }
+    }
+
+    // --- 触屏与键盘 ---
+    let touchStartX = 0, touchEndX = 0;
+    document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
+    document.addEventListener('touchend', e => {
+        touchEndX = e.changedTouches[0].screenX;
+        if (!document.getElementById('gameScreen').classList.contains('hidden')) {
+            if (touchEndX < touchStartX - 60) handleSwipe('left');
+            if (touchEndX > touchStartX + 60) handleSwipe('right');
+        }
+    }, {passive: true});
+
+    document.addEventListener('keydown', (e) => {
+        if (!document.getElementById('gameScreen').classList.contains('hidden')) {
+            if (e.key === 'ArrowLeft') handleSwipe('left');
+            if (e.key === 'ArrowRight') handleSwipe('right');
+        }
+    });
+
+    // --- 结局判断 ---
+    function checkRoundEnd() {
+        if (keptItems.length === 0) {
+            playSound('sfxLose');
+            document.getElementById('headerInfo').classList.add('hidden');
+            document.getElementById('gameScreen').classList.add('hidden');
+            document.getElementById('chefContainer').style.display = 'none'; 
+            document.body.style.backgroundColor = '#0F172A'; 
+            document.getElementById('failScreen').style.display = 'flex';
+        } else if (keptItems.length === 1) {
+            playSound('sfxWin');
+            showResult(keptItems[0]);
+        } else {
+            initRoulette();
+        }
+    }
+
+    // --- 终极转盘系统 ---
+    let currentRotation = 0;
+    function initRoulette() {
+        document.getElementById('headerInfo').classList.add('hidden');
+        document.getElementById('gameScreen').classList.add('hidden');
+        document.getElementById('chefContainer').style.display = 'none'; 
+        
+        const rouletteScreen = document.getElementById('rouletteScreen');
+        rouletteScreen.style.display = 'flex';
+        document.body.style.backgroundColor = '#1E293B'; 
+
+        const wheel = document.getElementById('wheel');
+        const sliceAngle = 360 / keptItems.length;
+        const colors = ['#FF9A9E', '#A1C4FD', '#D4FC79', '#FFD194', '#FECFEF', '#C2E9FB', '#96E6A1', '#70E1F5'];
+
+        let gradientStops = [], innerHTML = '';
+
+        keptItems.forEach((item, i) => {
+            const startAngle = i * sliceAngle;
+            const endAngle = (i + 1) * sliceAngle;
+            gradientStops.push(`${colors[i % colors.length]} ${startAngle}deg ${endAngle}deg`);
+
+            const textAngle = startAngle + (sliceAngle / 2);
+            innerHTML += `
+                <div class="wheel-slice" style="transform: rotate(${textAngle}deg);">
+                    <div class="wheel-emoji">${item.icon}</div>
+                </div>
+            `;
+        });
+
+        wheel.style.background = `conic-gradient(${gradientStops.join(', ')})`;
+        wheel.innerHTML = innerHTML;
+        wheel.style.transform = `rotate(0deg)`;
+        currentRotation = 0;
+    }
+
+    function spinWheel() {
+        const wheel = document.getElementById('wheel');
+        const spinBtn = document.getElementById('spinBtn');
+        spinBtn.disabled = true;
+        spinBtn.innerText = "🎰 抽取中...";
+
+        // 旋转圈数
+        const extraSpins = 5 * 360;
+        const randomDegree = Math.floor(Math.random() * 360);
+        const totalRotation = currentRotation + extraSpins + randomDegree;
+        
+        wheel.style.transition = 'transform 4s cubic-bezier(0.25, 0.1, 0.25, 1)';
+        wheel.style.transform = `rotate(${totalRotation}deg)`;
+
+        setTimeout(() => {
+            currentRotation = totalRotation;
+            const normalizedRotation = totalRotation % 360;
+            const sliceAngle = 360 / keptItems.length;
+            const winnerAngle = (360 - normalizedRotation) % 360;
+            const winnerIndex = Math.floor(winnerAngle / sliceAngle);
+            
+            playSound('sfxWin');
+            document.getElementById('rouletteScreen').style.display = 'none';
+            showResult(keptItems[winnerIndex]);
+        }, 4100);
+    }
+
+    function showResult(winner) {
+        document.getElementById('headerInfo').classList.add('hidden');
+        document.getElementById('gameScreen').classList.add('hidden');
+        document.getElementById('chefContainer').style.display = 'none'; 
+        
+        document.body.style.backgroundColor = '#FEF3C7'; 
+        document.getElementById('resultScreen').style.display = 'flex';
+        
+        document.getElementById('resultIcon').innerText = winner.icon;
+        document.getElementById('resultPriceTag').innerText = `大概 ¥ ${winner.price}`;
+        document.getElementById('resultName').innerText = winner.name;
+        document.getElementById('resultDesc').innerText = winner.desc;
+    }
+</script>
+</body>
+</html>
